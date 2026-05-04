@@ -35,7 +35,7 @@ Custom Theme by default
 
 ## Quick Start (Linux Mint / Ubuntu)
 
-(Windows instructions not included — I mainly use Linux, and my PC can’t currently handle a Windows build.I'm sure it will work on windows with a few adjustments PRs welcome!)
+(Windows instructions not included — I mainly use Linux. I'm sure it will work on windows with a few adjustments PRs welcome!)
 
 ### Install build dependencies
 
@@ -65,25 +65,21 @@ cd bin
 ./Notifier
 ```
 
-*(If your project already contains `CMakeLists.txt`, use it — the app was developed with CMake in mind.)*
-
 ---
 
 ## Project Layout / Key Files
 
 * `main.cpp` — main application, UI rendering, app state and logic.
-* `imgui/` (external) — Dear ImGui (docking branch) and backends (or use submodule)
+* `imgui/` (external) — Dear ImGui (docking branch) and backends
 * `backends/` — `imgui_impl_glfw.cpp`, `imgui_impl_opengl3.cpp` (from ImGui examples)
-* `fonts/` — optional custom fonts (e.g. `EpundaSans-Light.ttf`)
-* `notes.txt` — user notes stored (created at runtime)
-* `notifier_layout.ini` (optional) — saved ImGui layout file (if configured)
+* `fonts/` — optional custom fonts (e.g. `JetBrainsMonoNerdFontMono-Bold.ttf`)
 
 ---
 
 
 ## Important Implementations left to add
 
-* **Currently Empty .**
+* **Proper Font Management.**
 
 
 ## UX & Visual Improvements
