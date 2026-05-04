@@ -1,25 +1,23 @@
-cmake_minimum_required(VERSION 3.10)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-project(NotesApp)
+cmake_minimum_required(VERSION 3.20)
+
+if(NOT CMAKE_BUILD_TYPE)
+  message(STATUS "Setting build type to 'Debug' as none was specified.")
+  set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build." FORCE)
+endif()
+
+project(Nebula LANGUAGES C CXX)
+
+file(COPY ${CMAKE_SOURCE_DIR}/vendor/fonts DESTINATION ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# ImGui source files
-set(IMGUI_SRC
-    resources/imgui/imgui.cpp
-    resources/imgui/imgui_draw.cpp
-    resources/imgui/imgui_tables.cpp
-    resources/imgui/imgui_widgets.cpp
-    resources/imgui/backends/imgui_impl_glfw.cpp
-    resources/imgui/backends/imgui_impl_opengl3.cpp
-)
+set(GLFW_BUILD_EXAMPLES OFF)
+set(GLFW_BUILD_TESTS OFF)
+set(GLFW_BUILD_DOCS OFF)
 
-add_executable(notifier main.cpp ${IMGUI_SRC})
-
-target_include_directories(notifier PRIVATE ${CMAKE_SOURCE_DIR}/resources/imgui 
-    ${CMAKE_SOURCE_DIR}/resources/imgui/backends)
-
-find_package(glfw3 REQUIRED)
-find_package(OpenGL REQUIRED)
-
-target_link_libraries(notifier PRIVATE glfw OpenGL::GL)
+add_subdirectory(vendor/glfw)
+add_subdirectory(vendor/glad)
+add_subdirectory(vendor/imgui)
+add_subdirectory(src)
