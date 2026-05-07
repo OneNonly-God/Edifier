@@ -343,6 +343,10 @@ std::string OpenFolderDialog() {
 }
 
 void RenderFileSystemTree(const fs::path& path) {
+
+    if (path.empty() || !fs::exists(path) || !fs::is_directory(path)) {
+        return;
+    }
     std::vector<fs::directory_entry> directories;
     std::vector<fs::directory_entry> files;
 
@@ -446,6 +450,7 @@ void RenderExplorer() {
         ImGui::SameLine(ImGui::GetWindowWidth() - 30);
         if (ImGui::SmallButton("X")) {
             g_appState.projectRoot.clear();
+            g_appState.currentPath.clear();
         }
         
         ImGui::Separator();
@@ -1068,6 +1073,7 @@ void RenderMenuBar() {
 
 
 void RenderTabs() {
+#if 0
     ImGui::Begin("Files");
 
     if (!g_appState.tabs.empty()) {
@@ -1134,11 +1140,64 @@ void RenderTabs() {
     }
 
     ImGui::End();
+#endif
 }
 
 void RenderEditor() {
     ImGui::Begin("Editor");
 
+    #if 0
+    // Render tab bar
+    if (ImGui::BeginTabBar("TabBar", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
+        int closeTabRequest = -1;
+        
+        for (int i = 0; i < (int)g_appState.tabs.size(); ++i) {
+            FileTab &tab = g_appState.tabs[i];
+            std::string tabLabel = tab.filePath.empty() 
+                ? ("Untitled " + std::to_string(i + 1))
+                : fs::path(tab.filePath).filename().string();
+            
+            if (tab.isModified) tabLabel = "• " + tabLabel;
+
+
+            bool isActive = (g_appState.activeTab == i);
+            if (isActive) {
+                ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.3f, 0.5f, 0.8f, 0.8f));
+            }
+            
+            bool tabOpen = true;
+            ImGuiTabItemFlags flags = 0;
+            if (g_appState.activeTab == i) {
+                flags |= ImGuiTabItemFlags_SetSelected;
+            }
+            
+            if (ImGui::BeginTabItem(tabLabel.c_str(), &tabOpen, flags)) {
+                g_appState.activeTab = i;
+                g_appState.focusEditor = true;
+                ImGui::EndTabItem();
+            }
+
+            
+            
+            if (!tabOpen) {
+                closeTabRequest = i;
+            }
+        }
+        
+        // Handle deferred tab close to avoid modifying vector during iteration
+        if (closeTabRequest >= 0) {
+            if (g_appState.tabs[closeTabRequest].isModified) {
+                g_appState.closeTabIndex = closeTabRequest;
+            } else {
+                CloseTab(closeTabRequest);
+            }
+        }
+        
+        ImGui::EndTabBar();
+    }
+    
+    ImGui::Separator();
+    #endif
     if (g_appState.activeTab >= 0 && g_appState.activeTab < (int)g_appState.tabs.size()) {
         FileTab &tab = g_appState.tabs[g_appState.activeTab];
 
