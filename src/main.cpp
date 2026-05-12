@@ -14,14 +14,9 @@
 #include <vector>
 #include <string>
 #include <fstream>
-#include <cstring>
 #include <algorithm>
-#include <sstream>
 #include <filesystem>
 #include <memory>
-#include <unordered_map>
-#include <chrono>
-#include <iomanip>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -72,9 +67,6 @@ struct AppState {
     std::string currentPath;
     char filePathBuffer[512] = "";
 
-    // Search buffer
-    char searchBuffer[256] = "";
-
     // UI focus
     bool focusEditor = false;
 
@@ -96,7 +88,6 @@ void SaveFileAs(int tabIndex);
 void SaveFile(int tabIndex);
 void CloseTab(int tabIndex);
 void RenderEditor();
-void SaveRecentFiles();
 void SaveAll();
 void RenderMenuBar();
 void RenderMainDockSpace();
@@ -832,12 +823,6 @@ void HandleKeyboardShortcuts() {
         }
     }
 
-    // Esc - Clear search
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
-        if (g_appState.searchBuffer[0] != '\0') {
-            g_appState.searchBuffer[0] = '\0';
-        }
-    }
 }
 
 
