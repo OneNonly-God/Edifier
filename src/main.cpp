@@ -78,9 +78,6 @@ struct AppState {
     // UI focus
     bool focusEditor = false;
 
-    // Recent files
-    std::vector<std::string> recentFiles;
-    const size_t maxRecentFiles = 10;
     std::string projectRoot;
 };
 
@@ -96,11 +93,8 @@ void SetupInitialDockingLayout();
 std::string OpenFileDialog();
 void OpenFile(const std::string& filepath);
 void SaveFileAs(int tabIndex);
-void AddToRecentFiles(const std::string& filepath);
-void LoadRecentFiles();
 void SaveFile(int tabIndex);
 void CloseTab(int tabIndex);
-void RenderTabs();
 void RenderEditor();
 void SaveRecentFiles();
 void SaveAll();
@@ -109,28 +103,7 @@ void RenderMainDockSpace();
 bool IsTextFile(const std::string& filepath);
 std::string ReadFileContent(const std::string& filepath);
 
-// Return a platform-appropriate config directory path for recent_files.txt.
-std::string GetRecentFilesPath() {
-#ifdef _WIN32
-    char appdata[MAX_PATH] = {};
-    if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_APPDATA, NULL, 0, appdata))) {
-        std::string dir = std::string(appdata) + "\\Edifier";
-        fs::create_directories(dir);
-        return dir + "\\recent_files.txt";
-    }
-    return "recent_files.txt"; // fallback
-#elif __linux__
-    const char* home = std::getenv("HOME");
-    if (home) {
-        std::string dir = std::string(home) + "/.config/Edifier";
-        fs::create_directories(dir);
-        return dir + "/recent_files.txt";
-    }
-    return "recent_files.txt"; // fallback
-#else
-    return "recent_files.txt";
-#endif
-}
+
 
 // Embedded Icon
 void setEmbeddedIcon(GLFWwindow* window) {
@@ -548,48 +521,7 @@ std::string ReadFileContent(const std::string& filepath) {
     return normalized;
 }
 
-void AddToRecentFiles(const std::string& filepath) {
-    if (filepath.empty()) return;
-    
-    auto it = std::find(g_appState.recentFiles.begin(), g_appState.recentFiles.end(), filepath);
-    if (it != g_appState.recentFiles.end()) {
-        g_appState.recentFiles.erase(it);
-    }
 
-    g_appState.recentFiles.insert(g_appState.recentFiles.begin(), filepath);
-
-    if (g_appState.recentFiles.size() > g_appState.maxRecentFiles) {
-        g_appState.recentFiles.resize(g_appState.maxRecentFiles);
-    }
-
-    SaveRecentFiles();
-}
-
-void LoadRecentFiles() {
-    g_appState.recentFiles.clear();
-    // Use platform config path instead of CWD.
-    std::ifstream file(GetRecentFilesPath());
-    if (!file.is_open()) return;
-
-    std::string line;
-    while (std::getline(file, line) && g_appState.recentFiles.size() < g_appState.maxRecentFiles) {
-        if (!line.empty() && fs::exists(line)) {
-            g_appState.recentFiles.push_back(line);
-        }
-    }
-}
-
-void SaveRecentFiles() {
-    // Use platform config path instead of CWD.
-    std::ofstream file(GetRecentFilesPath(), std::ios::trunc);
-    if (!file.is_open()) {
-        std::cerr << "Failed to save recent files\n";
-        return;
-    }
-    for (const auto& path : g_appState.recentFiles) {
-        file << path << "\n";
-    }
-}
 
 // Helper to update word/char statistics for a tab.
 void UpdateFileStats(FileTab& tab) {
@@ -654,7 +586,6 @@ void SaveFile(int tabIndex) {
         tab.lastModified = fs::last_write_time(tab.filePath);
     }
     
-    AddToRecentFiles(tab.filePath);
     std::cout << "Saved: " << tab.filePath << "\n";
 }
 
@@ -689,7 +620,6 @@ void SaveFileAs(int tabIndex) {
         g_appState.tabs[tabIndex].lastModified = fs::last_write_time(filepath);
     }
     
-    AddToRecentFiles(filepath);
     std::cout << "Saved As: " << filepath << "\n";
 }
 
@@ -740,7 +670,6 @@ void OpenFile(const std::string& filepath) {
     g_appState.tabs.push_back(std::move(tab));
     g_appState.activeTab = (int)g_appState.tabs.size() - 1;
 
-    AddToRecentFiles(filepath);
     g_appState.focusEditor = true;
 }
 
@@ -903,11 +832,6 @@ void HandleKeyboardShortcuts() {
         }
     }
 
-    // F5 - Reload recent files
-    if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) {
-        LoadRecentFiles();
-    }
-
     // Esc - Clear search
     if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
         if (g_appState.searchBuffer[0] != '\0') {
@@ -989,19 +913,6 @@ void RenderMenuBar() {
             if (ImGui::MenuItem("Open File", "Ctrl+O")) {
                 std::string path = OpenFileDialog();
                 if (!path.empty()) OpenFile(path);
-            }
-
-            if (ImGui::BeginMenu("Recent Files", !g_appState.recentFiles.empty())) {
-                for (const auto& filepath : g_appState.recentFiles) {
-                    std::string filename = fs::path(filepath).filename().string();
-                    if (ImGui::MenuItem(filename.c_str())) {
-                        OpenFile(filepath);
-                    }
-                    if (ImGui::IsItemHovered()) {
-                        ImGui::SetTooltip("%s", filepath.c_str());
-                    }
-                }
-                ImGui::EndMenu();
             }
 
             ImGui::Separator();
@@ -1088,7 +999,7 @@ void RenderEditor() {
                     : fs::path(tab.filePath).filename().string();
                 
                 if (tab.isModified) {
-                    tabLabel = "● " + tabLabel;  // Filled circle for modified
+                    tabLabel = "• " + tabLabel;  // Filled circle for modified
                 }
                 
                 ImGui::PushID(i);
@@ -1342,7 +1253,6 @@ void RenderDialogs() {
         
         ImGui::Text("Features:");
         ImGui::BulletText("Open and edit any file type");
-        ImGui::BulletText("Recent files history");
         ImGui::BulletText("Multiple file tabs");
         ImGui::BulletText("Fast search through files");
         ImGui::BulletText("Keyboard shortcuts");
@@ -1357,7 +1267,6 @@ void RenderDialogs() {
         ImGui::BulletText("Ctrl+S: Save");
         ImGui::BulletText("Ctrl+Shift+S: Save as");
         ImGui::BulletText("Ctrl+W: Close tab");
-        ImGui::BulletText("F5: Reload recent files");
         
         ImGui::Separator();
         if (ImGui::Button("Close", ImVec2(120, 0))) {
@@ -1428,8 +1337,6 @@ int main() {
     // Initialize GTK once here at startup, not per-dialog.
     gtkInit();
 
-    LoadRecentFiles();
-
     while (!glfwWindowShouldClose(g_window)) {
         glfwPollEvents();
 
@@ -1464,8 +1371,6 @@ int main() {
 
         glfwSwapBuffers(g_window);
     }
-
-    SaveRecentFiles();
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
