@@ -60,6 +60,7 @@ struct AppState {
     std::vector<FileTab> tabs;
     int activeTab = -1;
     int closeTabIndex = -1;
+    int lastActiveTab = -1;  // Track previous tab to detect changes
 
     // UI & dialog flags
     bool needsSave = false;
@@ -931,7 +932,7 @@ void SetupInitialDockingLayout() {
         // Previously, I claimed a top/bottom split was performed, but dock_right was
         // never actually split — both "Files" and "Editor" were placed into the same node,
         // making them tabs instead of a vertical stack.
-        // Now we split dock_right into an upper (file list) and lower (editor) section.
+        // Removed the "Files" thingy btw
         ImGuiID dock_right_top, dock_right_bottom;
         ImGui::DockBuilderSplitNode(dock_right, ImGuiDir_Up, 0.25f, &dock_right_top, &dock_right_bottom);
 
@@ -1071,152 +1072,70 @@ void RenderMenuBar() {
     }
 }
 
-
-void RenderTabs() {
-#if 0
-    ImGui::Begin("Files");
-
-    if (!g_appState.tabs.empty()) {
-        ImGui::Text("Open Files:");
-        ImGui::Separator();
-        
-        // Collect close/save requests instead of acting on them inside the loop.
-        // Calling CloseTab() (which does tabs.erase()) during iteration corrupts indices
-        // and may skip or double-process tabs. We defer to after the loop.
-        int requestClose = -1;
-        int requestSave  = -1;
-
-        for (int i = 0; i < (int)g_appState.tabs.size(); ++i) {
-            FileTab &tab = g_appState.tabs[i];
-            std::string title = tab.filePath.empty() 
-                ? ("Untitled " + std::to_string(i + 1)) 
-                : fs::path(tab.filePath).filename().string();
-            
-            if (tab.isModified) title = "• " + title;
-
-            ImGui::PushID(i);
-            
-            bool isActive = (g_appState.activeTab == i);
-            if (isActive) {
-                ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.3f, 0.5f, 0.8f, 0.8f));
-            }
-            
-            if (ImGui::Selectable(title.c_str(), isActive)) {
-                g_appState.activeTab = i;
-                g_appState.focusEditor = true;
-            }
-            
-            if (isActive) {
-                ImGui::PopStyleColor();
-            }
-            
-            if (ImGui::BeginPopupContextItem()) {
-                if (ImGui::MenuItem("Close")) {
-                    requestClose = i;
-                }
-                if (ImGui::MenuItem("Save", nullptr, false, tab.isModified)) {
-                    requestSave = i;
-                }
-                ImGui::EndPopup();
-            }
-
-            ImGui::PopID();
-        }
-
-        // Process deferred mutations after the loop is complete.
-        if (requestSave >= 0) {
-            SaveFile(requestSave);
-        }
-        if (requestClose >= 0) {
-            if (g_appState.tabs[requestClose].isModified) {
-                g_appState.closeTabIndex = requestClose;
-            } else {
-                CloseTab(requestClose);
-            }
-        }
-
-    } else {
-        ImGui::TextWrapped("No files open. Use File → Open or create a new file.");
-    }
-
-    ImGui::End();
-#endif
-}
-
 void RenderEditor() {
     ImGui::Begin("Editor");
 
-    #if 0
-    // Render tab bar
-    if (ImGui::BeginTabBar("TabBar", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
-        int closeTabRequest = -1;
-        
-        for (int i = 0; i < (int)g_appState.tabs.size(); ++i) {
-            FileTab &tab = g_appState.tabs[i];
-            std::string tabLabel = tab.filePath.empty() 
-                ? ("Untitled " + std::to_string(i + 1))
-                : fs::path(tab.filePath).filename().string();
+    // Render tab bar at the top
+    if (!g_appState.tabs.empty()) {
+        if (ImGui::BeginTabBar("EditorTabs", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
+            int closeTabRequest = -1;
             
-            if (tab.isModified) tabLabel = "• " + tabLabel;
-
-
-            bool isActive = (g_appState.activeTab == i);
-            if (isActive) {
-                ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.3f, 0.5f, 0.8f, 0.8f));
+            for (int i = 0; i < (int)g_appState.tabs.size(); ++i) {
+                FileTab &tab = g_appState.tabs[i];
+                
+                std::string tabLabel = tab.filePath.empty() 
+                    ? ("Untitled " + std::to_string(i + 1))
+                    : fs::path(tab.filePath).filename().string();
+                
+                if (tab.isModified) {
+                    tabLabel = "● " + tabLabel;  // Filled circle for modified
+                }
+                
+                ImGui::PushID(i);
+                bool tabOpen = true;
+                
+                // Let ImGui handle tab selection - don't use SetSelected flag
+                if (ImGui::BeginTabItem(tabLabel.c_str(), &tabOpen)) {
+                    // Update our state when this tab is selected
+                    if (g_appState.activeTab != i) {
+                        g_appState.activeTab = i;
+                        g_appState.lastActiveTab = -1;  // Force focus on next frame
+                    }
+                    ImGui::EndTabItem();
+                }
+                
+                ImGui::PopID();
+                
+                if (!tabOpen) {
+                    closeTabRequest = i;
+                }
             }
             
-            bool tabOpen = true;
-            ImGuiTabItemFlags flags = 0;
-            if (g_appState.activeTab == i) {
-                flags |= ImGuiTabItemFlags_SetSelected;
-            }
+            ImGui::EndTabBar();
             
-            if (ImGui::BeginTabItem(tabLabel.c_str(), &tabOpen, flags)) {
-                g_appState.activeTab = i;
-                g_appState.focusEditor = true;
-                ImGui::EndTabItem();
-            }
-
-            
-            
-            if (!tabOpen) {
-                closeTabRequest = i;
+            // Handle tab close after the loop to avoid iterator invalidation
+            if (closeTabRequest >= 0) {
+                if (g_appState.tabs[closeTabRequest].isModified) {
+                    g_appState.closeTabIndex = closeTabRequest;
+                } else {
+                    CloseTab(closeTabRequest);
+                }
             }
         }
-        
-        // Handle deferred tab close to avoid modifying vector during iteration
-        if (closeTabRequest >= 0) {
-            if (g_appState.tabs[closeTabRequest].isModified) {
-                g_appState.closeTabIndex = closeTabRequest;
-            } else {
-                CloseTab(closeTabRequest);
-            }
-        }
-        
-        ImGui::EndTabBar();
     }
-    
-    ImGui::Separator();
-    #endif
+
     if (g_appState.activeTab >= 0 && g_appState.activeTab < (int)g_appState.tabs.size()) {
         FileTab &tab = g_appState.tabs[g_appState.activeTab];
-
-        std::string noteInfo = tab.filePath.empty() 
-            ? ("Untitled - Tab " + std::to_string(g_appState.activeTab + 1))
-            : fs::path(tab.filePath).filename().string();
-        
-        if (tab.isModified) noteInfo += " (modified)";
-        ImGui::Text("%s", noteInfo.c_str());
-        ImGui::Separator();
 
         ImVec2 availSize = ImGui::GetContentRegionAvail();
         // Clamp editor height so it cannot go negative when the panel is
         // smaller than the reserved space for the toolbar/status row below it.
         availSize.y = std::max(availSize.y - 80.0f, 1.0f);
 
-        if (g_appState.focusEditor) {
+        // Only set keyboard focus when switching tabs, not every frame
+        if (g_appState.activeTab != g_appState.lastActiveTab) {
             ImGui::SetKeyboardFocusHere();
-            g_appState.focusEditor = false;
+            g_appState.lastActiveTab = g_appState.activeTab;
         }
 
         // Use resize() instead of reserve() so that size() == capacity() and
@@ -1522,7 +1441,6 @@ int main() {
 
         RenderMainDockSpace();
         RenderMenuBar();
-        RenderTabs();
         RenderEditor();
         RenderExplorer();
         RenderDialogs();
