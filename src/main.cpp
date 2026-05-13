@@ -749,6 +749,7 @@ void SetupInitialStyle() {
     colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.38f, 0.28f, 0.48f, 1.00f);
     colors[ImGuiCol_TabDimmedSelected]    = ImVec4(0.15f, 0.16f, 0.18f, 1.00f);
     colors[ImGuiCol_TabSelected]          = ImVec4(0.16f, 0.17f, 0.18f, 1.00f);
+    colors[ImGuiCol_Tab]                  = ImVec4(0.16f, 0.17f, 0.18f, 1.00f);
     colors[ImGuiCol_TabHovered]           = ImVec4(0.38f, 0.38f, 0.39f, 1.00f);
     colors[ImGuiCol_TabSelectedOverline]  = ImVec4(0.17f, 0.17f, 0.18f, 1.00f);
 
