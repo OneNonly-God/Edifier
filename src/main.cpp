@@ -29,10 +29,13 @@
 
 namespace fs = std::filesystem;
 
-enum ThemeType { THEME_DARK, THEME_LIGHT, THEME_CUSTOM };
-ThemeType currentTheme = THEME_CUSTOM;
+enum ThemeType { THEME_DARK, THEME_LIGHT, THEME_PURPLE, THEME_CUSTOM };
+ThemeType currentTheme = THEME_PURPLE;
 
-GLFWwindow* g_window = nullptr;
+static GLFWwindow* g_window = nullptr;
+static bool showThemeEditor = false;
+static ImVec4 originalThemeColors[ImGuiCol_COUNT];
+static bool themeBackupSaved = false;
 
 // GTK is initialized once at startup, not per-dialog.
 #ifdef __linux__
@@ -79,7 +82,8 @@ AppState g_appState;
 void RenderExplorer();
 void RenderFileSystemTree(const fs::path& path);
 void OpenFolder(const std::string& folderpath);
-void SetupCustomStyle();
+void SetupInitialStyle();
+void ThemeEditorMenu();
 void HandleKeyboardShortcuts();
 void SetupInitialDockingLayout();
 std::string OpenFileDialog();
@@ -695,14 +699,14 @@ void CloseTab(int tabIndex) {
     }
 }
 
-void SetupCustomStyle() {
+void SetupInitialStyle() {
     ImGuiStyle& style = ImGui::GetStyle();
 
-    style.WindowRounding = 6.0f;
-    style.FrameRounding = 4.0f;
-    style.ScrollbarRounding = 6.0f;
-    style.GrabRounding = 4.0f;
-    style.TabRounding = 4.0f;
+    style.WindowRounding = 10.0f;
+    style.FrameRounding = 10.0f;
+    style.ScrollbarRounding = 10.0f;
+    style.GrabRounding = 6.0f;
+    style.TabRounding = 6.0f;
     style.WindowBorderSize = 1.0f;
     style.FrameBorderSize = 0.0f;
     style.PopupBorderSize = 1.0f;
@@ -718,7 +722,7 @@ void SetupCustomStyle() {
 
     const ImVec4 bg         = ImVec4(0.04f, 0.03f, 0.06f, 1.00f);
     const ImVec4 panel      = ImVec4(0.07f, 0.05f, 0.10f, 1.00f);
-    const ImVec4 panelAlt   = ImVec4(0.09f, 0.06f, 0.14f, 1.00f);
+    const ImVec4 panelAlt   = ImVec4(0.11f, 0.11f, 0.12f, 1.00f);
     const ImVec4 accent     = ImVec4(0.58f, 0.28f, 0.86f, 1.00f);
     const ImVec4 accentHov  = ImVec4(0.68f, 0.40f, 0.96f, 1.00f);
     const ImVec4 accentAct  = ImVec4(0.78f, 0.52f, 1.00f, 1.00f);
@@ -743,6 +747,10 @@ void SetupCustomStyle() {
     colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.22f, 0.16f, 0.28f, 1.00f);
     colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.30f, 0.20f, 0.40f, 1.00f);
     colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.38f, 0.28f, 0.48f, 1.00f);
+    colors[ImGuiCol_TabDimmedSelected]    = ImVec4(0.15f, 0.16f, 0.18f, 1.00f);
+    colors[ImGuiCol_TabSelected]          = ImVec4(0.16f, 0.17f, 0.18f, 1.00f);
+    colors[ImGuiCol_TabHovered]           = ImVec4(0.38f, 0.38f, 0.39f, 1.00f);
+    colors[ImGuiCol_TabSelectedOverline]  = ImVec4(0.17f, 0.17f, 0.18f, 1.00f);
 
     colors[ImGuiCol_CheckMark]            = accent;
     colors[ImGuiCol_SliderGrab]           = accent;
@@ -767,6 +775,44 @@ void SetupCustomStyle() {
     colors[ImGuiCol_PlotLines]            = ImVec4(0.62f, 0.30f, 0.88f, 1.00f);
     colors[ImGuiCol_PlotLinesHovered]     = ImVec4(0.78f, 0.44f, 0.98f, 1.00f);
     colors[ImGuiCol_TextSelectedBg]       = ImVec4(0.20f, 0.10f, 0.32f, 0.90f);
+    colors[ImGuiCol_DockingPreview]       = ImVec4(0.67f, 0.67f, 0.68f, 0.70f);
+}
+
+void ThemeEditorMenu() {
+    if (!showThemeEditor)
+        return;
+
+    ImGui::Begin("Theme Editor", &showThemeEditor);
+
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    static ImGuiTextFilter filter;
+    filter.Draw("Filter");
+
+    ImGui::Separator();
+
+    ImGui::BeginChild("Colors");
+
+    for (int i = 0; i < ImGuiCol_COUNT; i++) {
+        const char* name = ImGui::GetStyleColorName(i);
+
+        if (!filter.PassFilter(name))
+            continue;
+
+        ImGui::ColorEdit4(name, (float*)&style.Colors[i]);
+    }
+
+    ImGui::EndChild();
+
+    if (ImGui::Button("Reset Changes")) {
+        ImGuiStyle& style = ImGui::GetStyle();
+
+        for (int i = 0; i < ImGuiCol_COUNT; i++) {
+            style.Colors[i] = originalThemeColors[i];
+        }
+    }
+
+    ImGui::End();
 }
 
 void HandleKeyboardShortcuts() {
@@ -846,7 +892,6 @@ void SetupInitialDockingLayout() {
         ImGui::DockBuilderSplitNode(dock_right, ImGuiDir_Up, 0.25f, &dock_right_top, &dock_right_bottom);
 
         ImGui::DockBuilderDockWindow("Explorer", dock_left);
-        ImGui::DockBuilderDockWindow("Files",    dock_right_top);
         ImGui::DockBuilderDockWindow("Editor",   dock_right_bottom);
 
         ImGui::DockBuilderFinish(dockspace_id);
@@ -943,8 +988,23 @@ void RenderMenuBar() {
                     ImGui::StyleColorsLight();
                     currentTheme = THEME_LIGHT;
                 }
-                if (ImGui::MenuItem("Custom", nullptr, currentTheme == THEME_CUSTOM)) {
-                    SetupCustomStyle();
+                if (ImGui::MenuItem("Purple", nullptr, currentTheme == THEME_PURPLE)) {
+                    SetupInitialStyle();
+                    currentTheme = THEME_PURPLE;
+                }
+                if (ImGui::MenuItem("Custom Mode", nullptr, currentTheme == THEME_CUSTOM)) {
+
+                    if (!themeBackupSaved) {
+                        ImGuiStyle& style = ImGui::GetStyle();
+
+                        for (int i = 0; i < ImGuiCol_COUNT; i++) {
+                            originalThemeColors[i] = style.Colors[i];
+                        }
+
+                        themeBackupSaved = true;
+                    }
+
+                    showThemeEditor = true;
                     currentTheme = THEME_CUSTOM;
                 }
                 ImGui::EndMenu();
@@ -1276,7 +1336,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Store window in the global so all functions can reference it safely.
-    g_window = glfwCreateWindow(1400, 900, "Edifier - File Editor", nullptr, nullptr);
+    g_window = glfwCreateWindow(1400, 900, "", nullptr, nullptr);
     if (!g_window) {
         std::cerr << "Failed to create GLFW window\n";
         glfwTerminate();
@@ -1309,7 +1369,7 @@ int main() {
 
     io.FontDefault = mainFont;
 
-    SetupCustomStyle();
+    SetupInitialStyle();
     ImGuiStyle& style = ImGui::GetStyle();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         style.WindowRounding = 0.0f;
@@ -1333,6 +1393,7 @@ int main() {
 
         RenderMainDockSpace();
         RenderMenuBar();
+        ThemeEditorMenu();
         RenderEditor();
         RenderExplorer();
         RenderDialogs();
