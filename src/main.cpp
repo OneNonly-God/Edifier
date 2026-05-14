@@ -29,8 +29,8 @@
 
 namespace fs = std::filesystem;
 
-enum ThemeType { THEME_DARK, THEME_LIGHT, THEME_PURPLE, THEME_CUSTOM };
-ThemeType currentTheme = THEME_PURPLE;
+enum ThemeType { THEME_DARK, THEME_LIGHT, THEME_GREY, THEME_CUSTOM };
+ThemeType currentTheme = THEME_GREY;
 
 static GLFWwindow* g_window = nullptr;
 static bool showThemeEditor = false;
@@ -723,9 +723,9 @@ void SetupInitialStyle() {
     const ImVec4 bg         = ImVec4(0.04f, 0.03f, 0.06f, 1.00f);
     const ImVec4 panel      = ImVec4(0.07f, 0.05f, 0.10f, 1.00f);
     const ImVec4 panelAlt   = ImVec4(0.11f, 0.11f, 0.12f, 1.00f);
-    const ImVec4 accent     = ImVec4(0.58f, 0.28f, 0.86f, 1.00f);
-    const ImVec4 accentHov  = ImVec4(0.68f, 0.40f, 0.96f, 1.00f);
-    const ImVec4 accentAct  = ImVec4(0.78f, 0.52f, 1.00f, 1.00f);
+    const ImVec4 accent     = ImVec4(0.15f, 0.14f, 0.15f, 1.00f);
+    const ImVec4 accentHov  = ImVec4(0.38f, 0.38f, 0.39f, 1.00f);
+    const ImVec4 accentAct  = ImVec4(0.46f, 0.45f, 0.46f, 1.00f);
     const ImVec4 muted      = ImVec4(0.44f, 0.40f, 0.48f, 1.00f);
     const ImVec4 borderCol  = ImVec4(0.18f, 0.10f, 0.24f, 0.65f);
 
@@ -760,8 +760,8 @@ void SetupInitialStyle() {
     colors[ImGuiCol_ButtonHovered]        = accentHov;
     colors[ImGuiCol_ButtonActive]         = accentAct;
 
-    colors[ImGuiCol_Header]               = ImVec4(0.36f, 0.18f, 0.50f, 0.75f);
-    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.52f, 0.24f, 0.70f, 1.00f);
+    colors[ImGuiCol_Header]               = ImVec4(0.38f, 0.38f, 0.39f, 0.75f);
+    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.38f, 0.38f, 0.39f, 1.00f);
     colors[ImGuiCol_HeaderActive]         = ImVec4(0.64f, 0.34f, 0.88f, 1.00f);
 
     colors[ImGuiCol_Separator]            = ImVec4(0.12f, 0.09f, 0.16f, 1.00f);
@@ -989,9 +989,9 @@ void RenderMenuBar() {
                     ImGui::StyleColorsLight();
                     currentTheme = THEME_LIGHT;
                 }
-                if (ImGui::MenuItem("Purple", nullptr, currentTheme == THEME_PURPLE)) {
+                if (ImGui::MenuItem("Grey", nullptr, currentTheme == THEME_GREY)) {
                     SetupInitialStyle();
-                    currentTheme = THEME_PURPLE;
+                    currentTheme = THEME_GREY;
                 }
                 if (ImGui::MenuItem("Custom Mode", nullptr, currentTheme == THEME_CUSTOM)) {
 
