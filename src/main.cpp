@@ -436,7 +436,7 @@ bool IsTextFile(const std::string& filepath) {
     if (filepath.empty() || !fs::exists(filepath)) return false;
     
     std::string ext = fs::path(filepath).extension().string();
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c){ return std::tolower(c); });
 
     std::vector<std::string> textExtensions = {
         ".txt", ".md", ".markdown", ".log", ".cfg", ".ini", ".json", ".xml",
@@ -496,7 +496,9 @@ std::string ReadFileContent(const std::string& filepath) {
     }
 
     std::string content((size_t)size, '\0');
-    file.read(&content[0], size);
+    if(!content.empty()) { 
+        file.read(content.data(), size);
+    }
 
     std::string normalized;
     normalized.reserve(content.size());
@@ -576,7 +578,14 @@ void SaveFile(int tabIndex) {
 
     tab.isModified = false;
     g_appState.needsSave = false;
-    
+
+    for (const auto& t : g_appState.tabs) {
+        if (t.isModified) {
+            g_appState.needsSave = true;
+            break;
+        }
+    }
+
     if (fs::exists(tab.filePath)) {
         tab.lastModified = fs::last_write_time(tab.filePath);
     }
@@ -610,6 +619,13 @@ void SaveFileAs(int tabIndex) {
     g_appState.tabs[tabIndex].filePath = filepath;
     g_appState.tabs[tabIndex].isModified = false;
     g_appState.needsSave = false;
+
+    for (const auto& t : g_appState.tabs) {
+        if (t.isModified) {
+            g_appState.needsSave = true;
+            break;
+        }
+    }
     
     if (fs::exists(filepath)) {
         g_appState.tabs[tabIndex].lastModified = fs::last_write_time(filepath);
@@ -888,12 +904,10 @@ void SetupInitialDockingLayout() {
         // Previously, I claimed a top/bottom split was performed, but dock_right was
         // never actually split — both "Files" and "Editor" were placed into the same node,
         // making them tabs instead of a vertical stack.
-        // Removed the "Files" thingy btw
-        ImGuiID dock_right_top, dock_right_bottom;
-        ImGui::DockBuilderSplitNode(dock_right, ImGuiDir_Up, 0.25f, &dock_right_top, &dock_right_bottom);
+        // Removed the "Files" thingy
 
         ImGui::DockBuilderDockWindow("Explorer", dock_left);
-        ImGui::DockBuilderDockWindow("Editor",   dock_right_bottom);
+        ImGui::DockBuilderDockWindow("Editor",   dock_right);
 
         ImGui::DockBuilderFinish(dockspace_id);
     }
