@@ -2,7 +2,7 @@
 
 A lightweight, dockable, cross-platform File Editor application built with **C++**, **Dear ImGui (docking branch)**, and **GLFW/OpenGL**. Designed for fast file-editing, searching, and quick modifications. This repository contains the core app (Notifier v1.0.0), with a polished UI, keyboard shortcuts, dockable panels, and persistent layout and notes storage.
 
-> **Status:** Working — feature-complete for core functionality. Theme/background improvements planned.
+> **Status:** Working — feature-complete for core functionality. LSP integration and Editor improvements planned.
 
 ---
 
